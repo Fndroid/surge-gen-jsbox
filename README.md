@@ -2,6 +2,10 @@
 
 Surge3+配置管理器
 
+### 安装
+
+[点击安装](jsbox://import?url=https%3A%2F%2Fgithub.com%2FFndroid%2Fsurge-gen-jsbox%2Fblob%2Fmaster%2F.output%2FSurge%2520Policy.box%3Fraw%3Dtrue&name=Surge%20Policy)
+
 ### 特性
 1. 支持多服务商订阅
 2. 便捷的策略编辑操作
