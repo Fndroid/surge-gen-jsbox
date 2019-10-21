@@ -1,5 +1,4 @@
 const Diff = require('./diff')
-const _ = require('./lodash')
 
 const TEXT = 'conf'
 const SUBS = 'subs'
@@ -8,7 +7,6 @@ const POLICIES = 'policies'
 const TEXT_PROXIES = 'conf_proxies'
 const DIFF_URL = "diff_url"
 
-const KEYBOARD_HEIGHT = "keyboard_height"
 
 $define({
   type: "KeyboardObserver: NSObject",
@@ -40,7 +38,7 @@ $define({
       self.$setHeight(0);
       self.$notifyHeightChange();
     },
-    "notifyHeightChange": _.debounce(() => {
+    "notifyHeightChange": () => {
       const height = self.$height();
       console.log('height:', height)
       let v = $("basicConfView")
@@ -49,9 +47,8 @@ $define({
         v.remakeLayout(make => {
           make.size.equalTo($size(f.width, $('mainView').frame.height - height + 30))
         })
-        // v.animator.transformY($('mainView').frame.height - height + 30).easeIn.animate(0.5)
       }
-    }, 250)
+    }
   }
 });
 
