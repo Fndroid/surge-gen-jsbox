@@ -91,9 +91,7 @@ let renderUI = async () => {
                 icon: $icon("030", $color("tint"), $size(30, 30)),
               },
               events: {
-                tapped: () => {
-                  renderTextEditUI()
-                }
+                tapped: renderTextEditUI
               },
               views: []
             }, {
@@ -103,9 +101,7 @@ let renderUI = async () => {
                 icon: $icon("091", $color("tint"), $size(30, 30)),
               },
               events: {
-                tapped: () => {
-                  renderSubscrptionUI()
-                }
+                tapped: renderSubscrptionUI
               },
               views: []
             }, {
@@ -155,7 +151,7 @@ let renderUI = async () => {
       }, {
         type: 'label',
         props: {
-          id: '',
+          id: 'labelTop',
           align: $align.center,
           font: $font("bold", 17),
           text: 'PROXIES'
@@ -170,7 +166,7 @@ let renderUI = async () => {
       }, {
         type: 'view',
         props: {
-          id: '',
+          id: 'line1',
           bgcolor: $color('#f1f3f4')
         },
         layout: (make, view) => {
@@ -231,7 +227,7 @@ let renderUI = async () => {
       }, {
         type: 'view',
         props: {
-          id: '',
+          id: 'line2',
           bgcolor: $color('#f1f3f4')
         },
         layout: (make, view) => {
@@ -245,7 +241,7 @@ let renderUI = async () => {
       }, {
         type: 'label',
         props: {
-          id: '',
+          id: 'labelBottom',
           align: $align.center,
           font: $font("bold", 17),
           text: 'MORE'
@@ -260,7 +256,7 @@ let renderUI = async () => {
       }, {
         type: 'view',
         props: {
-          id: '',
+          id: 'line3',
           bgcolor: $color('#f1f3f4')
         },
         layout: (make, view) => {
@@ -315,7 +311,7 @@ let renderUI = async () => {
       }, {
         type: 'view',
         props: {
-          id: '',
+          id: 'line4',
           bgcolor: $color('#f1f3f4')
         },
         layout: (make, view) => {
@@ -342,7 +338,7 @@ let renderUI = async () => {
             // Check before generate
             let policies = $cache.get(POLICIES)
             for (let i = 0; i < policies.length; i++) {
-              if (policies[i].type === 'ssid') continue
+              if (policies[i].hasOwnProperty('raw')) continue
               for (let j = 0; j < policies[i].proxies.length; j++) {
                 let node = policies[i].proxies[j]
                 if (!isPolicyExist(node)) {
@@ -403,6 +399,20 @@ let renderUI = async () => {
               })
             }
           }
+        },
+        views: []
+      }, {
+        type: 'label',
+        props: {
+          id: 'hint',
+          hidden: true,
+          text: "Edit in Text Mode",
+          font: $font("bold", 25),
+          textColor: $color("#a6a5a4")
+        },
+        layout: $layout.center,
+        events: {
+          tapped: renderTextEditUI
         },
         views: []
       },]
@@ -672,34 +682,19 @@ let handleMainViewAppeared = () => {
       let name = RegExp.$1.trim()
       let type = RegExp.$2
       let others = RegExp.$3
-      if (type === 'select') {
+      if (/policy\-path\s*=\s*http/.test(others) || type === "ssid") {
+        policies.push({
+          name,
+          type,
+          raw: l
+        })
+      } else if (type === 'select') {
         policies.push({
           name,
           type,
           proxies: others.split(',').map(i => i.trim())
         })
-      } else if (type === 'ssid') {
-        let dft = ''
-        let cellular = ''
-        let wlans = []
-        let os = others.split(',').map(i => i.trim())
-        os.forEach(o => {
-          if (/default\s*=(.+)/.test(o)) {
-            dft = RegExp.$1.trim()
-          } else if (/cellular\s*=(.+)/.test(o)) {
-            cellular = RegExp.$1.trim()
-          } else {
-            wlans.push(o)
-          }
-        })
-        policies.push({
-          name,
-          type,
-          dft,
-          cellular,
-          wlans
-        })
-      } else {
+      } else if (type === 'fallback' || type === 'url-test') {
         let os = others.split(',').map(i => i.trim())
         let proxies = []
         let url = 'http://www.gstatic.com/generate_204'
@@ -734,7 +729,15 @@ let handleMenuChange = async sender => {
   let idx = sender.index
   let policies = $cache.get(POLICIES)
 
-  if (!policies[idx].hasOwnProperty('proxies')) {
+  let editable = policies[idx].hasOwnProperty('proxies')
+
+  let viewGroup = ['labelTop', 'labelBottom', 'line1', 'line2', 'line3', 'line4', 'existListView', 'allListView']
+  viewGroup.forEach(v => {
+    $('mainView').get(v).hidden = !editable
+  })
+  $("hint").hidden = editable
+
+  if (!editable) {
     $('existListView').data = []
     $('allListView').data = []
     return
@@ -830,10 +833,10 @@ let parseProxies = (raw, alias = false) => {
 let policyStringify = (policies) => {
   let lines = []
   policies.forEach(ps => {
-    if (ps.type === 'select') {
+    if (ps.hasOwnProperty('raw')) {
+      lines.push(ps.raw)
+    } else if (ps.type === 'select') {
       lines.push(`${ps.name} = select, ${ps.proxies.join(', ')}`)
-    } else if (ps.type === 'ssid') {
-      lines.push(`${ps.name} = ssid, default=${ps.dft}, ${ps.cellular ? `cellular=${ps.cellular}, ` : ''}${ps.wlans.join(', ')}`)
     } else {
       lines.push(`${ps.name} = ${ps.type}, ${ps.proxies.join(', ')}, interval=${ps.interval}, url=${ps.url}`)
     }
