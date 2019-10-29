@@ -23,6 +23,12 @@
           "key": "scheme",
           "items": ["surge3", "surge", "surge-enterprise"],
           "value": 0
+        },
+        {
+          "title": "Update Timeout",
+          "type": "integer",
+          "key": "updateTimeout",
+          "value": 10
         }
       ]
     },
@@ -30,14 +36,19 @@
       "title": "Donate",
       "items": [
         {
-          "title": "Alipay",
-          "type": "script",
-          "value": "$app.openURL($qrcode.decode($file.read('assets/thankyou2.jpg').image))"
-        },
-        {
           "title": "WeChat",
           "type": "script",
           "value": "$quicklook.open({image: $file.read('assets/thankyou.jpg').image})"
+        }
+      ]
+    },
+    {
+      "title": "Info",
+      "items": [
+        {
+          "title": "Author",
+          "type": "info",
+          "value": "Fndroid"
         }
       ]
     }

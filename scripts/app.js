@@ -334,71 +334,7 @@ let renderUI = async () => {
           make.width.equalTo(view.super)
         },
         events: {
-          tapped: async sender => {
-            // Check before generate
-            let policies = $cache.get(POLICIES)
-            for (let i = 0; i < policies.length; i++) {
-              if (policies[i].hasOwnProperty('raw')) continue
-              for (let j = 0; j < policies[i].proxies.length; j++) {
-                let node = policies[i].proxies[j]
-                if (!isPolicyExist(node)) {
-                  $ui.toast('Proxy not exist')
-                  $('policyMenuView').index = i
-                  handleMenuChange({ index: i })
-                  $('existListView').scrollTo({
-                    animated: true,
-                    indexPath: $indexPath(0, j)
-                  })
-                  $device.taptic(2)
-                  return
-                }
-              }
-            }
-
-            const filename = $prefs.get('filename')
-            let proxies = $cache.get(PROXIES)
-            let raw = proxies.map(p => p.raw).join('\n\n')
-            let t = $cache.get(TEXT)
-            t = t.replace(filePartReg('Proxy'), `$1$2\n${raw}\n$3`)
-
-            let exportWith = $prefs.get('export')
-            if (exportWith === 0) {
-              $share.sheet([filename, $data({ string: t })])
-            } else {
-              const SCHEMES = ["surge3", "surge", "surge-enterprise"]
-              const schemeIdx = $prefs.get("scheme")
-              let server = $server.new()
-              server.addHandler({
-                response: _ => {
-                  return {
-                    type: "data",
-                    props: {
-                      text: t
-                    }
-                  }
-                }
-              })
-              let randomPort = Math.round(Math.random() * 30000 + 30000)
-              server.start({ port: randomPort })
-              let serverUrl = `http://127.0.0.1:${randomPort}/${filename}`
-              let testResp = await $http.get(serverUrl)
-              if (testResp.response.statusCode === 200) {
-                let surgeScheme = `${SCHEMES[schemeIdx]}:///install-config?url=${encodeURIComponent(serverUrl)}`
-                $app.openURL(surgeScheme)
-                $app.listen({
-                  resume: () => {
-                    server && server.stop()
-                  }
-                })
-              } else {
-                $ui.alert('Server Error, please try again or use Share Sheet to export!')
-              }
-
-              $delay(10, () => {
-                server && server.stop()
-              })
-            }
-          }
+          tapped: generateConf
         },
         views: []
       }, {
@@ -784,7 +720,10 @@ let isPolicyExist = (name) => {
 let handleSubsUpdate = async () => {
   $ui.loading(true)
   let subs = $cache.get(SUBS)
-  let resps = await Promise.all(subs.map(s => $http.get(s)))
+  let resps = await Promise.all(subs.map(s => $http.get({
+    url: s,
+    timeout: $prefs.get('updateTimeout')
+  })))
   let failedUrls = []
   resps.forEach((resp, idx) => {
     if (resp.error || resp.response.statusCode !== 200) {
@@ -854,6 +793,72 @@ let saveConf = (od) => {
   let text = $cache.get(TEXT)
   text = text.replace(reg, `$1\n${policyStringify(od)}\n\n$3`)
   $cache.set(TEXT, text)
+}
+
+let generateConf = async _ => {
+  // Check before generate
+  let policies = $cache.get(POLICIES)
+  for (let i = 0; i < policies.length; i++) {
+    if (policies[i].hasOwnProperty('raw')) continue
+    for (let j = 0; j < policies[i].proxies.length; j++) {
+      let node = policies[i].proxies[j]
+      if (!isPolicyExist(node)) {
+        $ui.toast('Proxy not exist')
+        $('policyMenuView').index = i
+        handleMenuChange({ index: i })
+        $('existListView').scrollTo({
+          animated: true,
+          indexPath: $indexPath(0, j)
+        })
+        $device.taptic(2)
+        return
+      }
+    }
+  }
+
+  const filename = $prefs.get('filename')
+  let proxies = $cache.get(PROXIES)
+  let raw = proxies.map(p => p.raw).join('\n\n')
+  let t = $cache.get(TEXT)
+  t = t.replace(filePartReg('Proxy'), `$1$2\n${raw}\n$3`)
+
+  let exportWith = $prefs.get('export')
+  if (exportWith === 0) {
+    $share.sheet([filename, $data({ string: t })])
+  } else {
+    const SCHEMES = ["surge3", "surge", "surge-enterprise"]
+    const schemeIdx = $prefs.get("scheme")
+    let server = $server.new()
+    server.addHandler({
+      response: _ => {
+        return {
+          type: "data",
+          props: {
+            text: t
+          }
+        }
+      }
+    })
+    let randomPort = Math.round(Math.random() * 30000 + 30000)
+    server.start({ port: randomPort })
+    let serverUrl = `http://127.0.0.1:${randomPort}/${filename}`
+    let testResp = await $http.get(serverUrl)
+    if (testResp.response.statusCode === 200) {
+      let surgeScheme = `${SCHEMES[schemeIdx]}:///install-config?url=${encodeURIComponent(serverUrl)}`
+      $app.openURL(surgeScheme)
+      $app.listen({
+        resume: () => {
+          server && server.stop()
+        }
+      })
+    } else {
+      $ui.alert('Server Error, please try again or use Share Sheet to export!')
+    }
+
+    $delay(10, () => {
+      server && server.stop()
+    })
+  }
 }
 
 module.exports = {
