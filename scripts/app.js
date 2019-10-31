@@ -59,10 +59,15 @@ $app.listen({
   exit: () => $objc_release(observer)
 });
 
+const EMPTY_NAV_BUTTON = [{
+  title: ""
+}]
+
 let renderUI = async () => {
   $ui.render({
     props: {
-      title: 'Surge'
+      title: 'Surge Policy',
+      navButtons: EMPTY_NAV_BUTTON
     },
     events: {
       appeared: handleMainViewAppeared
@@ -70,7 +75,7 @@ let renderUI = async () => {
     views: [{
       type: 'view',
       props: {
-        id: 'mainView'
+        id: 'mainView',
       },
       layout: (make, view) => {
         make.height.width.equalTo(view.super).offset(-30)
@@ -352,6 +357,75 @@ let renderUI = async () => {
         },
         views: []
       },]
+    }, {
+      type: 'blur',
+      props: {
+        id: 'downloadingView',
+        style: 2,
+        hidden: true
+      },
+      layout: $layout.fill,
+      events: {},
+      views: [{
+        type: 'list',
+        props: {
+          id: 'downloadingListView',
+          radius: 10,
+          template: {
+            views: [{
+              type: 'label',
+              props: {
+                id: 'domainView',
+                font: $font("bold", 17)
+              },
+              layout: (make, view) => {
+                make.centerY.equalTo(view.super)
+                make.width.equalTo(view.super).offset(-75)
+                make.left.equalTo(view.super).offset(15)
+              },
+              events: {},
+              views: []
+            }, {
+              type: 'image',
+              props: {
+                id: 'statusView',
+              },
+              layout: (make, view) => {
+                make.centerY.equalTo(view.super)
+                make.size.equalTo($size(25, 25));
+                make.right.equalTo(view.super).offset(-15)
+              },
+              events: {},
+              views: []
+            },]
+          }
+        },
+        layout: (make, view) => {
+          make.center.equalTo(view.super)
+          make.width.equalTo(view.super).offset(-60)
+          make.height.equalTo(view.super).multipliedBy(0.5)
+        },
+        events: {},
+        views: []
+      }, {
+        type: 'button',
+        props: {
+          id: '',
+          bgcolor: $color("#000"),
+          radius: 20,
+          icon: $icon('225', $color('#fff'), $size(40, 40))
+        },
+        layout: (make, view) => {
+          make.centerX.equalTo(view.super)
+          make.top.equalTo(view.prev.bottom).offset(10)
+        },
+        events: {
+          tapped: _ => {
+            $('downloadingView').hidden = true
+          }
+        },
+        views: []
+      },]
     }]
   })
 }
@@ -360,6 +434,7 @@ let renderTextEditUI = () => {
   $ui.push({
     props: {
       title: "BASIC CONF",
+      navButtons: EMPTY_NAV_BUTTON,
     },
     views: [{
       type: 'text',
@@ -427,12 +502,13 @@ let renderTextEditUI = () => {
           $cache.set(DIFF_URL, t)
           let resp = await $http.get(t)
           let diff = new Diff()
-          let d = diff.main(resp.data.replace(/\r\n/g, '\n'),$cache.get(TEXT).replace(/\r\n/g, '\n'))
+          let d = diff.main(resp.data.replace(/\r\n/g, '\n'), $cache.get(TEXT).replace(/\r\n/g, '\n'))
           diff.cleanupSemantic(d)
           // console.log(diff.prettyHtml(d))
           $ui.push({
             props: {
-              title: "DIFF"
+              title: "DIFF",
+              navButtons: EMPTY_NAV_BUTTON
             },
             views: [{
               type: 'web',
@@ -546,6 +622,7 @@ let renderSubscrptionUI = () => {
   $ui.push({
     props: {
       title: "SUBSCRIPTIONS",
+      navButtons: EMPTY_NAV_BUTTON,
     },
     views: [{
       type: 'list',
@@ -694,12 +771,12 @@ let handleMenuChange = async sender => {
   $('allListView').data = psns
     .filter(p => !existProxies.includes(p))
     .map(p => {
-    return {
-      name: {
-        text: p
+      return {
+        name: {
+          text: p
+        }
       }
-    }
-  })
+    })
 }
 
 let getAllProxyNames = () => {
@@ -714,32 +791,61 @@ let isPolicyExist = (name) => {
 }
 
 let handleSubsUpdate = async () => {
-  $ui.loading(true)
   let subs = $cache.get(SUBS)
-  let resps = await Promise.all(subs.map(s => $http.get({
-    url: s,
-    timeout: $prefs.get('updateTimeout')
-  })))
-  let failedUrls = []
-  resps.forEach((resp, idx) => {
-    if (resp.error || resp.response.statusCode !== 200) {
-      failedUrls.push(subs[idx])
+
+  let httpGetCount = async (url, timeout, counter = () => { }) => {
+    try {
+      let resp = await $http.get({
+        url,
+        timeout
+      })
+      counter({ url, success: !resp.error && resp.response.statusCode === 200 })
+      return resp
+    } catch (e) {
+      counter({ url, success: false })
+      return { data: '' }
     }
-  })
-  if (failedUrls.length > 0) {
-    $ui.alert({
-      title: 'Update Failed',
-      message: failedUrls.join('\n\n')
+  }
+
+  let hostFromURL = (url) => {
+    if (/https?:\/\/(.+?)(?:\/|$|\?)/.test(url)) {
+      return RegExp.$1.trim()
+    }
+    return url
+  }
+
+  let convertListData = (ds) => {
+    return ds.map(d => {
+      let src = "assets/loading.gif"
+      if (d.status === 1) {
+        src = "assets/done.png"
+      } else if (d.status === 2) {
+        src = "assets/error.png"
+      }
+      return { domainView: { text: hostFromURL(d.url) }, statusView: { src } }
     })
   }
-  $ui.loading(false)
+
+  let data = subs.map(s => ({ url: s, status: 0 }))
+  $('downloadingListView').data = convertListData(data)
+  $('downloadingView').hidden = false
+
+  let failedUrls = []
+  let resps = await Promise.all(subs.map(s => httpGetCount(s, $prefs.get('updateTimeout'), (res) => {
+    if (!res.success) {
+      failedUrls.push(res.url)
+    }
+    data.find(d => d.url === res.url).status = res.success ? 1 : 2
+    $('downloadingListView').data = convertListData(data)
+  })))
   let proxies = resps.map(resp => parseProxies(resp.data)).reduce((prev, cur) => prev.concat(cur), [])
   let oldProxies = $cache.get(PROXIES) || []
   let newProxies = proxies.filter(p => !oldProxies.map(o => o.name).includes(p.name))
   if (newProxies.length > 0) {
-    $ui.alert({
-      title: 'New Proxies',
-      message: newProxies.map(p => p.name).join('\n')
+    $push.schedule({
+      title: "New Proxies",
+      body: newProxies.map(p => p.name).join(', '),
+      delay: 1
     })
   }
   $cache.set(PROXIES, proxies)
