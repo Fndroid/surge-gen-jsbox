@@ -691,12 +691,9 @@ let handleMenuChange = async sender => {
     }
   })
 
-  $('allListView').data = psns.filter(p => {
-    if (existProxies.find(ep => ep === p)) {
-      return false
-    }
-    return true
-  }).map(p => {
+  $('allListView').data = psns
+    .filter(p => !existProxies.includes(p))
+    .map(p => {
     return {
       name: {
         text: p
@@ -713,8 +710,7 @@ let getAllProxyNames = () => {
 }
 
 let isPolicyExist = (name) => {
-  let psns = getAllProxyNames()
-  return psns.find(ps => ps === name) !== undefined
+  return getAllProxyNames().includes(name)
 }
 
 let handleSubsUpdate = async () => {
@@ -739,7 +735,7 @@ let handleSubsUpdate = async () => {
   $ui.loading(false)
   let proxies = resps.map(resp => parseProxies(resp.data)).reduce((prev, cur) => prev.concat(cur), [])
   let oldProxies = $cache.get(PROXIES) || []
-  let newProxies = proxies.filter(p => oldProxies.find(o => o.name === p.name) === undefined)
+  let newProxies = proxies.filter(p => !oldProxies.map(o => o.name).includes(p.name))
   if (newProxies.length > 0) {
     $ui.alert({
       title: 'New Proxies',
@@ -784,7 +780,7 @@ let policyStringify = (policies) => {
 }
 
 let filePartReg = name => {
-  let reg = `(\\[${name}\\])([\\S\\s]*?)(\\[General\\]|\\[Replica\\]|\\[Proxy\\]|\\[Proxy Group\\]|\\[Rule\\]|\\[Host\\]|\\[URL Rewrite\\]|\\[Header Rewrite\\]|\\[SSID Setting\\]|\\[MITM\\]|\\[URL-REJECTION\\]|\\[HOST\\]|\\[POLICY\\]|\\[REWRITE\\]|\\[Script\\]|$)`
+  let reg = `(\\[${name}\\])([\\S\\s]*?)(\\[General\\]|\\[Replica\\]|\\[Proxy\\]|\\[Proxy Group\\]|\\[Rule\\]|\\[Host\\]|\\[URL Rewrite\\]|\\[Header Rewrite\\]|\\[SSID Setting\\]|\\[MITM\\]|\\[Script\\]|$)`
   return new RegExp(reg)
 }
 
