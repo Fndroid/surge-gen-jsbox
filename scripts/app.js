@@ -628,10 +628,10 @@ let handleMainViewAppeared = () => {
         policies.push({
           name,
           type,
-          proxies: others.split(',').map(i => i.trim())
+          proxies: others.split(',').map(i => i.trim()).filter(i => i !== "")
         })
       } else if (type === 'fallback' || type === 'url-test') {
-        let os = others.split(',').map(i => i.trim())
+        let os = others.split(',').map(i => i.trim()).filter(i => i !== "")
         let proxies = []
         let url = 'http://www.gstatic.com/generate_204'
         let interval = 200
