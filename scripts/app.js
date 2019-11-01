@@ -842,11 +842,23 @@ let handleSubsUpdate = async () => {
   let oldProxies = $cache.get(PROXIES) || []
   let newProxies = proxies.filter(p => !oldProxies.map(o => o.name).includes(p.name))
   if (newProxies.length > 0) {
-    $push.schedule({
-      title: "New Proxies",
-      body: newProxies.map(p => p.name).join(', '),
-      delay: 1
-    })
+    let notificationType = $prefs.get('notificationType')
+    console.log('notificationType:', notificationType)
+    let title = 'New Proxies'
+    let body = newProxies.map(p => p.name).join(', ')
+    if (notificationType === 1) {
+      $push.schedule({
+        title,
+        body,
+        delay: 1
+      })
+    } else if (notificationType === 2) {
+      $ui.alert({
+        title,
+        message: body,
+        actions: [{ title: "OK", handler: () => {} }]
+      })
+    }
   }
   $cache.set(PROXIES, proxies)
   handleMenuChange({ index: $('policyMenuView').index })

@@ -29,6 +29,13 @@
           "type": "integer",
           "key": "updateTimeout",
           "value": 10
+        },
+        {
+          "title": "Notify New Proxies",
+          "type": "list",
+          "key": "notificationType",
+          "items": ["None", "Notification", "Dialog"],
+          "value": 1
         }
       ]
     },
